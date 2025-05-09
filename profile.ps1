@@ -26,8 +26,13 @@ function Import-File {
 }
 
 $imports = @(
+    Import-File "aliases.ps1"
+    Import-File "general.ps1"
     Import-File "GitCommands.ps1"
     Import-File "private.ps1"
+    Import-File "DockerCommands.ps1"
+    Import-File "K8sCommands.ps1"
+    Import-File "choco.ps1"
 )
 
 foreach ($import in $imports) {
@@ -35,9 +40,15 @@ foreach ($import in $imports) {
     Write-Host "Imported $import" -ForegroundColor Green
 }
 
-oh-my-posh init pwsh --config 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/quick-term.omp.json' | Invoke-Expression
+oh-my-posh init pwsh --config "$Home\Documents\PowerShell\oh-my-posh.json" | Invoke-Expression
 "Imported theme"
 
-function CD-SR { Set-Location $Home/source/repos }
+function ShowHelp {
+    $gitContext = [ContextCommands]::new('Git', (GitCommands))
+    $dockerContext = [ContextCommands]::new('Docker', (DockerCommands))
+    $k8sContext = [ContextCommands]::new('Kubernetes', (K8sCommands))
 
-Set-Alias openssl "C:\Program Files\Git\usr\bin\openssl.exe"
+    $allContexts = @($gitContext, $dockerContext, $k8sContext)
+
+    Show-Help-Template -Contexts $allContexts
+}
