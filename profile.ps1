@@ -44,11 +44,37 @@ oh-my-posh init pwsh --config "$Home\Documents\PowerShell\oh-my-posh.json" | Inv
 "Imported theme"
 
 function ShowHelp {
+    param (
+        [Parameter(Mandatory = $false, Position = 0)]
+        [string]$context
+    )
+
+    $allContexts = @()
+
     $gitContext = [ContextCommands]::new('Git', (GitCommands))
     $dockerContext = [ContextCommands]::new('Docker', (DockerCommands))
     $k8sContext = [ContextCommands]::new('Kubernetes', (K8sCommands))
 
-    $allContexts = @($gitContext, $dockerContext, $k8sContext)
+    if (-not $context) {
+        $allContexts = @($gitContext, $dockerContext, $k8sContext)
+    }
 
-    Show-Help-Template -Contexts $allContexts
+    if ($context -in @('git', 'g')) {
+        $allContexts = @($gitContext)
+    }
+
+    if ($context -in @('docker', 'd')) {
+        $allContexts = @($dockerContext)
+    }
+
+    if ($context -in @('kubernetes', 'k8s', 'k')) {
+        $allContexts = @($k8sContext)
+    }
+
+    if ($allContexts) {
+        Show-Help-Template -Contexts $allContexts
+        return;
+    }
+
+    Write-Error "Unknown context - $context"
 }
