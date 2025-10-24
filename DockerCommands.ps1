@@ -12,7 +12,7 @@ function DBash {
         docker run -it --rm busybox
     }
     else {
-        docker exec -it $Container /bin/sh
+        docker exec -it --user root $Container /bin/sh
     }
 }
 
