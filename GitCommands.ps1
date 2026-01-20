@@ -94,6 +94,79 @@ function GLogOne {
     git log --graph $format --abbrev-commit
 }
 
+function GRemoveOldBranches {
+    # Remove local git branches older than 3 days that don't exist on origin
+    param(
+        [int]$DaysOld = 3,
+        [string]$RemoteName = "origin",
+        [switch]$WhatIf
+    )
+
+    # Get the current date
+    $cutoffDate = (Get-Date).AddDays(-$DaysOld)
+
+    # Fetch latest remote info without pulling
+    Write-Host "Fetching latest remote info..." -ForegroundColor Cyan
+    git fetch $RemoteName --prune
+
+    # Get all local branches with their last commit date
+    Write-Host "Checking local branches..." -ForegroundColor Cyan
+    $branchesToDelete = @()
+
+    # Get all local branches except the current one
+    $branches = git branch --format='%(refname:short)' | Where-Object { $_ -ne "" }
+
+    foreach ($branch in $branches) {
+        # Get the last commit date for this branch
+        $lastCommitDate = git log -1 --format=%ai "$branch" | ForEach-Object { [DateTime]$_ }
+        
+        # Check if branch exists on remote (exit code 0 if exists, 1 if not)
+        git show-ref --quiet refs/remotes/$RemoteName/$branch
+        $existsOnRemote = $LASTEXITCODE -eq 0
+        
+        # Delete if older than cutoff AND does not exist on remote
+        if ($lastCommitDate -lt $cutoffDate -and -not $existsOnRemote) {
+            Write-Host "Branch '$branch' last commit: $lastCommitDate (older than $DaysOld days, not on $RemoteName)" -ForegroundColor Yellow
+            $branchesToDelete += $branch
+        }
+    }
+
+    if ($branchesToDelete.Count -eq 0) {
+        Write-Host "No branches to delete." -ForegroundColor Green
+        exit 0
+    }
+
+    Write-Host "`nBranches to delete:`n" -ForegroundColor Yellow
+    $branchesToDelete | ForEach-Object { Write-Host "  - $_" }
+
+    if ($WhatIf) {
+        Write-Host "`n[WhatIf] No branches were deleted." -ForegroundColor Cyan
+        exit 0
+    }
+
+    # Confirm deletion
+    $response = Read-Host "`nDelete these branches? (y/yes/no)"
+    if ($response.ToLower() -notin @("y", "yes")) {
+        Write-Host "Cancelled." -ForegroundColor Cyan
+        exit 0
+    }
+
+    # Delete branches
+    Write-Host "Deleting branches..." -ForegroundColor Cyan
+    $deletedCount = 0
+    foreach ($branch in $branchesToDelete) {
+        git branch -D $branch
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "✓ Deleted: $branch" -ForegroundColor Green
+            $deletedCount++
+        } else {
+            Write-Host "✗ Failed to delete: $branch" -ForegroundColor Red
+        }
+    }
+
+    Write-Host "`nDone! Deleted $deletedCount out of $($branchesToDelete.Count) branches." -ForegroundColor Green
+}
+
 function GitCommands {
     $commands = @(
         [Command]::new('GNewBranch', 'Creates new branch and checks out', @( [CommandParameter]::new('Name', $true))),
@@ -107,7 +180,8 @@ function GitCommands {
         [Command]::new('GGetStash', 'Get stash', @( [CommandParameter]::new('Index', $false))),
         [Command]::new('GReset', 'Cleanses working directory', @()),
         [Command]::new('GAddTag', 'Adds tag to commit', @( [CommandParameter]::new('TagName', $true), [CommandParameter]::new('Message', $true))),
-        [Command]::new('GLogOne', 'Prints nicely git log with one liners', @( [CommandParameter]::new('Size', $false) ))
+        [Command]::new('GLogOne', 'Prints nicely git log with one liners', @( [CommandParameter]::new('Size', $false) )),
+        [Command]::new('GRemoveOldBranches', 'Removes local branches older than N days that dont exist on remote', @( [CommandParameter]::new('DaysOld', $false), [CommandParameter]::new('RemoteName', $false), [CommandParameter]::new('WhatIf', $false) ))
     )
 
     return $commands;
