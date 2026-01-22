@@ -133,7 +133,7 @@ function GRemoveOldBranches {
 
     if ($branchesToDelete.Count -eq 0) {
         Write-Host "No branches to delete." -ForegroundColor Green
-        exit 0
+        return;
     }
 
     Write-Host "`nBranches to delete:`n" -ForegroundColor Yellow
@@ -141,14 +141,14 @@ function GRemoveOldBranches {
 
     if ($WhatIf) {
         Write-Host "`n[WhatIf] No branches were deleted." -ForegroundColor Cyan
-        exit 0
+        return;
     }
 
     # Confirm deletion
     $response = Read-Host "`nDelete these branches? (y/yes/no)"
     if ($response.ToLower() -notin @("y", "yes")) {
         Write-Host "Cancelled." -ForegroundColor Cyan
-        exit 0
+        return;
     }
 
     # Delete branches
